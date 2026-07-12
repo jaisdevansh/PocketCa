@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1783410596021,
+      "tag": "0000_whole_la_nuit",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783411044504,
+      "tag": "0001_true_maginty",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783411530092,
+      "tag": "0002_fine_ezekiel_stane",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783412242728,
+      "tag": "0003_tough_ma_gnuci",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783412541805,
+      "tag": "0004_steep_night_thrasher",
+      "breakpoints": true
+    }
+  ]
+}
