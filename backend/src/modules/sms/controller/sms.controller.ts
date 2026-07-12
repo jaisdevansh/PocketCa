@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SmsService } from '../service/sms.service';
 import { SmsSyncDto } from '../dto/sms.dto';
-import { sendSuccess } from '../../../../src/utils/response.util';
+import { sendSuccess } from '../../../utils/response.util';
 
 export class SmsController {
   constructor(private readonly smsService: SmsService) {}
