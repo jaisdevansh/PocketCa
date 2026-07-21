@@ -3,31 +3,26 @@ import { useRouter } from 'expo-router';
 import { authApi } from '../api';
 import { LoginFormData } from '../schemas';
 
-import { useAppStore } from '@/store/useAppStore';
-import * as SecureStore from 'expo-secure-store';
+import { useAuthStore } from '@/core/auth/authStore';
 
 export const useLogin = () => {
   const router = useRouter();
-  const setAuthenticated = useAppStore((state) => state.setAuthenticated);
-  const setUser = useAppStore((state) => state.setUser);
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   return useMutation({
     mutationFn: (data: LoginFormData) => authApi.login(data),
     onSuccess: async (response) => {
-      // Normal flow: Save token and navigate to main app or setup profile
-      if (response.token) {
-        await SecureStore.setItemAsync('pocketca_token', response.token);
+      // Normal flow: Save token and user state
+      if (response.accessToken && response.refreshToken) {
+        await setAuth(response.accessToken, response.refreshToken, {
+          id: response.user?.id,
+          email: response.user?.email,
+          name: `${response.user?.firstName || ''} ${response.user?.lastName || ''}`.trim(),
+          username: response.user?.username,
+          profileImage: response.user?.profileImage,
+        });
       }
       
-      setUser({
-        id: response.user.id,
-        email: response.user.email,
-        name: `${response.user.firstName || ''} ${response.user.lastName || ''}`.trim(),
-        username: response.user.username,
-        profileImage: response.user.profileImage,
-      });
-      
-      setAuthenticated(true);
       // The router in _layout.tsx will automatically pick up authentication state changes
       // and redirect to /(tabs) or setup-profile.
     },

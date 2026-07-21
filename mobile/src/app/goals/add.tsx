@@ -1,3 +1,4 @@
+import {} from 'react-native-safe-area-context';
 import React from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';

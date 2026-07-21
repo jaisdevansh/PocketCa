@@ -9,7 +9,7 @@ export const budgetWorker = new Worker(
   async (job: Job) => {
     await budgetService.processTransactionForBudget(job.data);
   },
-  { connection }
+  { connection, stalledInterval: 300000, drainDelay: 15000 }
 );
 
 export const goalWorker = new Worker(
@@ -17,7 +17,7 @@ export const goalWorker = new Worker(
   async (job: Job) => {
     await goalService.processTransactionForGoal(job.data);
   },
-  { connection }
+  { connection, stalledInterval: 300000, drainDelay: 15000 }
 );
 
 export const analyticsWorker = new Worker(
@@ -25,5 +25,5 @@ export const analyticsWorker = new Worker(
   async (job: Job) => {
     await analyticsService.processTransactionForAnalytics(job.data);
   },
-  { connection }
+  { connection, stalledInterval: 300000, drainDelay: 15000 }
 );

@@ -1,44 +1,44 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { PocketText } from '@/shared/components/PocketText';
 import { PocketButton } from '@/shared/components/PocketButton';
 import { PocketInput } from '@/shared/components/PocketInput';
 import { colors } from '@/core/theme/colors';
 import { spacing } from '@/core/theme/spacing';
-import { useAppStore } from '@/store/useAppStore';
+import { useVerifyOtp } from '@/features/auth/hooks/useAuthHooks';
 import { TopBar } from '@/shared/components/TopBar';
 
 export default function OtpScreen() {
-  const router = useRouter();
-  const setAuthenticated = useAppStore((state) => state.setAuthenticated);
+  const params = useLocalSearchParams();
+  const phone = Array.isArray(params.phone) ? params.phone[0] : params.phone || '';
+  
+  const { mutate: verifyOtp, isPending } = useVerifyOtp();
   const scheme = useColorScheme();
   const c = colors[scheme === 'dark' ? 'dark' : 'light'];
 
   const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
 
   const handleVerify = () => {
-    if (otp.length < 4) {
-      setError('Please enter a valid 4-digit code.');
+    if (otp.length < 6) {
+      setError('Please enter a valid 6-digit code.');
       return;
     }
     setError(undefined);
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setAuthenticated(true);
-      // Simulate backend setting user but without username to trigger setup
-      useAppStore.getState().setUser({ id: '1', name: '', email: 'user@example.com' });
-      // The _layout.tsx routing guard will automatically redirect to setup-profile
-    }, 1000);
+    
+    verifyOtp({ phone, otp }, {
+      onError: (err) => {
+        setError(err.message || 'Verification failed. Please try again.');
+      }
+      // On success, useVerifyOtp sets the auth state, which will automatically redirect via _layout.tsx
+    });
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
-      <TopBar />
+      <TopBar showBack={true} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
@@ -48,22 +48,21 @@ export default function OtpScreen() {
             Verify it's you
           </PocketText>
           <PocketText variant="bodyLarge" color={c.textSecondary} style={styles.subtitle}>
-            We've sent a 4-digit secure code to your device. 
-            {"\n"}(Demo OTP: Just enter 1234)
+            We've sent a 6-digit secure code to {phone ? phone : 'your device'}. 
           </PocketText>
         </View>
 
         <View style={styles.form}>
           <PocketInput
             label="Secure Code"
-            placeholder="0000"
+            placeholder="000000"
             value={otp}
             onChangeText={(text) => {
               setOtp(text);
               if (error) setError(undefined);
             }}
             keyboardType="number-pad"
-            maxLength={4}
+            maxLength={6}
             error={error}
             textAlign="center"
             inputStyle={styles.otpInput}
@@ -72,8 +71,8 @@ export default function OtpScreen() {
           <PocketButton
             title="Verify & Continue"
             onPress={handleVerify}
-            loading={loading}
-            disabled={otp.length < 4 || loading}
+            loading={isPending}
+            disabled={otp.length < 6 || isPending}
             style={styles.submitBtn}
           />
 

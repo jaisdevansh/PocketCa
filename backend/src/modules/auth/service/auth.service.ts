@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
-import { SendOtpDto, VerifyOtpDto, RefreshTokenDto } from '../schemas/auth.schema';
+import { SendOtpDto, VerifyOtpDto, RefreshTokenDto, UpdateProfileDto } from '../schemas/auth.schema';
 import { userRepository } from '../repository/user.repository';
 import { sessionRepository } from '../repository/session.repository';
 import { tokenRepository } from '../repository/token.repository';
@@ -12,6 +12,7 @@ import { AppError } from '../../../utils/custom-exceptions';
 import { cacheService } from '../../../cache/cache.service';
 import { appConfig } from '../../../config/app.config';
 import crypto from 'crypto';
+import { v2 as cloudinary } from 'cloudinary';
 
 interface OtpData {
   hash: string;
@@ -283,5 +284,37 @@ export class AuthService {
         refreshToken: newRawRefreshToken,
       };
     });
+  }
+
+  async updateProfile(data: UpdateProfileDto, request: FastifyRequest) {
+    const user = request.user as any;
+    if (!user || !user.userId) {
+      throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+    }
+
+    let profileImageUrl = data.profileImage;
+
+    // If profileImage is a base64 string, upload to Cloudinary
+    if (profileImageUrl && profileImageUrl.startsWith('data:image')) {
+      try {
+        const result = await cloudinary.uploader.upload(profileImageUrl, {
+          folder: 'pocketca/profiles',
+          transformation: [{ width: 500, height: 500, crop: 'fill' }]
+        });
+        profileImageUrl = result.secure_url;
+      } catch (err) {
+        request.log.error(err, 'Failed to upload profile image to Cloudinary');
+        throw new AppError('Failed to upload image', 500, 'UPLOAD_FAILED');
+      }
+    }
+
+    const updatedUser = await userRepository.updateUser(user.userId, {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      username: data.username,
+      profileImage: profileImageUrl,
+    });
+
+    return updatedUser;
   }
 }

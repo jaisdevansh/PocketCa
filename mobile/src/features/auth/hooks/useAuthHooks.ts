@@ -11,11 +11,14 @@ export const useSendOtp = () => {
 
 export const useVerifyOtp = () => {
   const setAuth = useAuthStore((state) => state.setAuth);
+  const { setAuthenticated, setUser } = require('@/store/useAppStore').useAppStore.getState();
 
   return useMutation({
     mutationFn: ({ phone, otp }: { phone: string; otp: string }) => authApi.verifyOtp(phone, otp),
     onSuccess: async (data) => {
       await setAuth(data.accessToken, data.refreshToken, data.user);
+      setAuthenticated(true);
+      setUser(data.user);
     },
   });
 };

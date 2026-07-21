@@ -19,15 +19,18 @@ export default function SetupProfileScreen() {
   const c = colors[scheme === 'dark' ? 'dark' : 'light'];
   const updateProfile = useAppStore((state) => state.updateProfile);
 
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
+  const [profileImageBase64, setProfileImageBase64] = useState<string | null>(null);
   
   const [isChecking, setIsChecking] = useState(false);
   const [usernameError, setUsernameError] = useState<string>();
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isAvailable, setIsAvailable] = useState(false);
   const [showImagePickerMenu, setShowImagePickerMenu] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Mock username validation logic
   useEffect(() => {
@@ -77,9 +80,13 @@ export default function SetupProfileScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
+      setProfileImageUri(result.assets[0].uri);
+      if (result.assets[0].base64) {
+        setProfileImageBase64(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
     }
   };
 
@@ -90,24 +97,44 @@ export default function SetupProfileScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
 
     if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
+      setProfileImageUri(result.assets[0].uri);
+      if (result.assets[0].base64) {
+        setProfileImageBase64(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
     }
   };
 
-  const handleComplete = () => {
-    if (!name || !username || !isAvailable) return;
+  const handleComplete = async () => {
+    if (!firstName || !lastName || !username || !isAvailable) return;
     
-    // Save to global store
-    updateProfile({
-      name,
-      username,
-      profileImage: profileImage || undefined
-    });
-    
-    // The layout routing guard will automatically push to (tabs) once username is set
+    setIsSubmitting(true);
+    try {
+      const { authApi } = await import('@/features/auth/api');
+      
+      const updatedUser = await authApi.updateProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        username: username.trim(),
+        profileImage: profileImageBase64 || undefined,
+      });
+
+      // Save to global store
+      updateProfile({
+        name: `${updatedUser.firstName} ${updatedUser.lastName}`.trim(),
+        username: updatedUser.username,
+        profileImage: updatedUser.profileImage || undefined
+      });
+      
+      // The layout routing guard will automatically push to (tabs) once username is set
+    } catch (error: any) {
+      Alert.alert('Error', error?.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -122,18 +149,18 @@ export default function SetupProfileScreen() {
             activeOpacity={1} 
             onPress={() => setShowImagePickerMenu(false)} 
           />
-          <View style={[styles.bottomSheet, { backgroundColor: c.surface }]}>
-            <View style={styles.sheetHandle} />
+          <View style={[styles.bottomSheet, { backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.border }]}>
+            <View style={[styles.sheetHandle, { backgroundColor: scheme === 'dark' ? '#333' : '#E0E0E0' }]} />
             <PocketText variant="heading3" weight="bold" style={styles.sheetTitle}>Profile Photo</PocketText>
             
-            <TouchableOpacity style={styles.sheetOption} onPress={captureImage}>
+            <TouchableOpacity style={styles.sheetOption} onPress={captureImage} activeOpacity={0.7}>
               <View style={[styles.iconBox, { backgroundColor: c.surfaceVariant }]}>
                 <Icon name="Camera" size={24} color={c.textPrimary} />
               </View>
               <PocketText variant="bodyLarge" weight="medium">Take a Photo</PocketText>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.sheetOption} onPress={pickImage}>
+            <TouchableOpacity style={styles.sheetOption} onPress={pickImage} activeOpacity={0.7}>
               <View style={[styles.iconBox, { backgroundColor: c.surfaceVariant }]}>
                 <Icon name="Image" size={24} color={c.textPrimary} />
               </View>
@@ -155,8 +182,8 @@ export default function SetupProfileScreen() {
 
           <View style={styles.avatarContainer}>
             <Pressable onPress={handleImageSelection} style={[styles.avatarWrapper, { backgroundColor: c.surface, borderColor: c.border }]}>
-              {profileImage ? (
-                <Image source={{ uri: profileImage }} style={styles.avatar} contentFit="cover" />
+              {profileImageUri ? (
+                <Image source={{ uri: profileImageUri }} style={styles.avatar} contentFit="cover" />
               ) : (
                 <Icon name="Camera" size={32} color={c.textSecondary} />
               )}
@@ -170,12 +197,24 @@ export default function SetupProfileScreen() {
           </View>
 
           <View style={styles.form}>
-            <PocketInput
-              label="Full Name"
-              placeholder="e.g. John Doe"
-              value={name}
-              onChangeText={setName}
-            />
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <View style={{ flex: 1 }}>
+                <PocketInput
+                  label="First Name"
+                  placeholder="e.g. John"
+                  value={firstName}
+                  onChangeText={setFirstName}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <PocketInput
+                  label="Last Name"
+                  placeholder="e.g. Doe"
+                  value={lastName}
+                  onChangeText={setLastName}
+                />
+              </View>
+            </View>
 
             <View style={styles.usernameContainer}>
               <PocketInput
@@ -219,9 +258,9 @@ export default function SetupProfileScreen() {
           </View>
 
           <PocketButton
-            title="Complete Setup"
+            title={isSubmitting ? "Saving..." : "Complete Setup"}
             onPress={handleComplete}
-            disabled={!name || !username || !isAvailable || isChecking}
+            disabled={!firstName || !lastName || !username || !isAvailable || isChecking || isSubmitting}
             style={styles.submitBtn}
           />
 
@@ -249,8 +288,8 @@ const styles = StyleSheet.create({
   avatar: { width: 100, height: 100, borderRadius: 50 },
   editBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: 2,
+    right: 2,
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -278,13 +317,13 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
   bottomSheet: {
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: spacing.xxl,
-    paddingBottom: Platform.OS === 'ios' ? 40 : spacing.xxl,
+    paddingBottom: Platform.OS === 'ios' ? 40 : spacing.xl,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
@@ -293,9 +332,8 @@ const styles = StyleSheet.create({
   },
   sheetHandle: {
     width: 40,
-    height: 4,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 2,
+    height: 5,
+    borderRadius: 3,
     alignSelf: 'center',
     marginBottom: spacing.xl,
   },

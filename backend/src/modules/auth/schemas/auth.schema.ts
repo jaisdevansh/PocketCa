@@ -16,6 +16,14 @@ export const refreshTokenSchema = z.object({
   refreshToken: z.string().optional(),
 });
 
+export const updateProfileSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  username: z.string().min(3, 'Username must be at least 3 characters'),
+  profileImage: z.string().optional(),
+});
+
 export type SendOtpDto = z.infer<typeof sendOtpSchema>;
 export type VerifyOtpDto = z.infer<typeof verifyOtpSchema>;
 export type RefreshTokenDto = z.infer<typeof refreshTokenSchema>;
+export type UpdateProfileDto = z.infer<typeof updateProfileSchema>;

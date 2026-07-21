@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { AuthController } from '../controller/auth.controller';
 import { AuthService } from '../service/auth.service';
-import { sendOtpSchema, verifyOtpSchema, refreshTokenSchema } from '../schemas/auth.schema';
+import { sendOtpSchema, verifyOtpSchema, refreshTokenSchema, updateProfileSchema } from '../schemas/auth.schema';
 
 export default async function authRoutes(fastify: FastifyInstance) {
   const authService = new AuthService(fastify);
@@ -76,5 +76,19 @@ export default async function authRoutes(fastify: FastifyInstance) {
       },
     },
     authController.me
+  );
+
+  typedFastify.patch(
+    '/profile',
+    {
+      preValidation: [fastify.authenticate],
+      schema: {
+        body: updateProfileSchema,
+        tags: ['Authentication'],
+        summary: 'Update current user profile (first name, last name, username, profile image)',
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    authController.updateProfile
   );
 }

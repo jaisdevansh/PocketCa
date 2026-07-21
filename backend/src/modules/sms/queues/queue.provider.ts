@@ -109,7 +109,7 @@ export const smsParsingWorker = new Worker(
       throw error;
     }
   },
-  { connection, concurrency: 10 }
+  { connection, concurrency: 10, stalledInterval: 300000, drainDelay: 15000 }
 );
 
 smsParsingWorker.on('failed', (job, err) => {

@@ -1,3 +1,4 @@
+import {} from 'react-native-safe-area-context';
 import { View, Text, SafeAreaView, ScrollView, StyleSheet } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { PocketButton } from '@/shared/components/PocketButton';

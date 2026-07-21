@@ -16,7 +16,7 @@ export const gmailSyncWorker = new Worker(
     const { connectionId } = job.data;
     await gmailSync(connectionId);
   },
-  { connection, concurrency: 5 }
+  { connection, concurrency: 5, stalledInterval: 300000, drainDelay: 15000 }
 );
 
 gmailSyncWorker.on('failed', (job, err) => {
@@ -28,7 +28,7 @@ export const gmailParsingWorker = new Worker(
   async (job: Job<{ logId: string; messageId: string; connectionId: string }>) => {
     await emailParsingService.parseEmailJob(job.data.logId, job.data.messageId, job.data.connectionId);
   },
-  { connection, concurrency: 10 }
+  { connection, concurrency: 10, stalledInterval: 300000, drainDelay: 15000 }
 );
 
 gmailParsingWorker.on('failed', (job, err) => {

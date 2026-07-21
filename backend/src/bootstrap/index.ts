@@ -40,7 +40,7 @@ export async function bootstrap(app: FastifyInstance) {
   await app.register(securityPlugin);
   await app.register(rateLimitPlugin);
   await app.register(jwtPlugin);
-  await app.register(redisPlugin);
+  // await app.register(redisPlugin); // Disabled due to rate limits
   await app.register(cloudinaryPlugin);
   await app.register(swaggerPlugin);
   await app.register(multipartPlugin);
@@ -55,7 +55,7 @@ export async function bootstrap(app: FastifyInstance) {
   await app.register(systemRoutes, { prefix: `${appConfig.API_PREFIX}/system` });
 
   // Init Schedulers
-  await nightlyScheduler.init();
+  // await nightlyScheduler.init(); // Disabled due to rate limits
 
   // 5. Error Handler
   app.setErrorHandler(globalErrorHandler);

@@ -3,6 +3,7 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, Press
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
 
 import { PocketText } from '@/shared/components/PocketText';
 import { PocketButton } from '@/shared/components/PocketButton';
@@ -10,27 +11,87 @@ import { PocketInput } from '@/shared/components/PocketInput';
 import { TopBar } from '@/shared/components/TopBar';
 import { colors } from '@/core/theme/colors';
 import { spacing } from '@/core/theme/spacing';
-import { loginSchema, LoginFormData } from '@/features/auth/schemas';
-import { useLogin } from '@/features/auth/hooks/useLogin';
+import { radius } from '@/core/theme/radius';
+import { phoneSchema, PhoneFormData } from '@/features/auth/schemas';
+import { useSendOtp } from '@/features/auth/hooks/useAuthHooks';
 import { useAppStore } from '@/store/useAppStore';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { useEffect, useState } from 'react';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
-  const { mutate: login, isPending } = useLogin();
+  const router = useRouter();
+  const { mutate: sendOtp, isPending: isSendingOtp } = useSendOtp();
   const scheme = useColorScheme();
   const c = colors[scheme === 'dark' ? 'dark' : 'light'];
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: '5734668613-e7cdsi0hm1e9mf1pbpmuitl9qqt04e7s.apps.googleusercontent.com',
+    androidClientId: '5734668613-e7cdsi0hm1e9mf1pbpmuitl9qqt04e7s.apps.googleusercontent.com',
+    iosClientId: '5734668613-e7cdsi0hm1e9mf1pbpmuitl9qqt04e7s.apps.googleusercontent.com',
+  });
+
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      if (authentication?.accessToken) {
+        fetchUserInfo(authentication.accessToken);
+      }
+    } else if (response?.type === 'error' || response?.type === 'dismiss') {
+      setIsGoogleLoading(false);
+    }
+  }, [response]);
+
+  const fetchUserInfo = async (token: string) => {
+    try {
+      const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const userInfo = await userInfoResponse.json();
+      
+      const { useAuthStore } = require('@/core/auth/authStore');
+      await useAuthStore.getState().setAuth(
+        token, // accessToken
+        'mock_google_refresh_token', // refreshToken
+        {
+          id: userInfo.id || 'google_user',
+          name: userInfo.name || 'Google User',
+          firstName: userInfo.given_name || '',
+          lastName: userInfo.family_name || '',
+          email: userInfo.email || 'user@gmail.com',
+          username: `google_${userInfo.id || Math.random()}`,
+          profileImage: userInfo.picture || 'https://randomuser.me/api/portraits/lego/1.jpg',
+        }
+      );
+    } catch (error) {
+      console.error('Failed to fetch user info', error);
+      setIsGoogleLoading(false);
+    }
+  };
 
   const {
     control,
     handleSubmit,
     formState: { errors, isValid },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<PhoneFormData>({
+    resolver: zodResolver(phoneSchema),
     mode: 'onChange',
-    defaultValues: { email: '', password: '' },
+    defaultValues: { phone: '' },
   });
 
-  const onSubmit = (data: LoginFormData) => {
-    login(data);
+  const onSubmit = (data: PhoneFormData) => {
+    sendOtp(data, {
+      onSuccess: () => {
+        router.push({ pathname: '/otp', params: { phone: data.phone } });
+      },
+      onError: (err) => {
+        console.error('Failed to send OTP:', err);
+      }
+    });
   };
 
   return (
@@ -45,14 +106,14 @@ export default function LoginScreen() {
             Welcome back
           </PocketText>
           <PocketText variant="bodyLarge" color={c.textSecondary} style={styles.subtitle}>
-            Enter your email and password to securely log in.
+            Enter your phone number to securely log in.
           </PocketText>
         </View>
 
         <View style={styles.form}>
           <Controller
             control={control}
-            name="email"
+            name="phone"
             render={({ field: { onChange, onBlur, value } }) => (
               <View style={{ marginBottom: spacing.lg }}>
                 <PocketText
@@ -61,57 +122,41 @@ export default function LoginScreen() {
                   color={c.textSecondary}
                   style={{ marginBottom: spacing.xs, marginLeft: spacing.xs }}
                 >
-                  Email Address
+                  Phone Number
                 </PocketText>
                 
-                <PocketInput
-                  label={undefined}
-                  placeholder="e.g. dev@pocketca.com"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  containerStyle={{ marginBottom: 0 }}
-                />
+                <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
+                  {/* Flag Box */}
+                  <View style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderWidth: 1.5,
+                    borderColor: c.border,
+                    backgroundColor: c.surfaceVariant,
+                    borderRadius: radius.md,
+                    paddingHorizontal: spacing.md,
+                    marginRight: spacing.sm,
+                  }}>
+                    <PocketText style={{ fontSize: 18, marginRight: 6 }}>🇮🇳</PocketText>
+                    <PocketText variant="bodyLarge" weight="medium" color={c.textPrimary}>+91</PocketText>
+                  </View>
+                  
+                  {/* Input Box */}
+                  <PocketInput
+                    label={undefined}
+                    placeholder="e.g. 9876543210"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    keyboardType="phone-pad"
+                    autoCapitalize="none"
+                    containerStyle={{ marginBottom: 0, flex: 1 }}
+                  />
+                </View>
                 
-                {errors.email?.message && (
+                {errors.phone?.message && (
                   <PocketText variant="caption" color={colors.light.error} style={{ marginTop: spacing.xs, marginLeft: spacing.xs }}>
-                    {errors.email.message}
-                  </PocketText>
-                )}
-              </View>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <View style={{ marginBottom: spacing.lg }}>
-                <PocketText
-                  variant="bodySmall"
-                  weight="medium"
-                  color={c.textSecondary}
-                  style={{ marginBottom: spacing.xs, marginLeft: spacing.xs }}
-                >
-                  Password
-                </PocketText>
-                
-                <PocketInput
-                  label={undefined}
-                  placeholder="••••••••"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  containerStyle={{ marginBottom: 0 }}
-                />
-                
-                {errors.password?.message && (
-                  <PocketText variant="caption" color={colors.light.error} style={{ marginTop: spacing.xs, marginLeft: spacing.xs }}>
-                    {errors.password.message}
+                    {errors.phone.message}
                   </PocketText>
                 )}
               </View>
@@ -121,8 +166,8 @@ export default function LoginScreen() {
           <PocketButton
             title="Continue"
             onPress={handleSubmit(onSubmit)}
-            loading={isPending}
-            disabled={!isValid || isPending}
+            loading={isSendingOtp}
+            disabled={!isValid || isSendingOtp}
             style={styles.submitBtn}
           />
 
@@ -135,18 +180,11 @@ export default function LoginScreen() {
           </View>
 
           <Pressable 
-            style={[styles.googleBtn, { borderColor: c.border, backgroundColor: c.surface }]} 
+            style={[styles.googleBtn, { borderColor: c.border, backgroundColor: c.surface, opacity: (!request || isGoogleLoading) ? 0.7 : 1 }]} 
+            disabled={!request || isGoogleLoading}
             onPress={() => {
-              // Simulate Google Login fetching data
-              useAppStore.getState().setUser({
-                id: 'google_123',
-                name: 'Devan (Google)',
-                email: 'devan@gmail.com',
-                username: 'devan_google', // Auto-generated unique username
-                profileImage: 'https://randomuser.me/api/portraits/men/44.jpg'
-              });
-              useAppStore.getState().setAuthenticated(true);
-              // _layout.tsx will automatically route to /(tabs) since username exists
+              setIsGoogleLoading(true);
+              promptAsync();
             }}
           >
             {/* A simple placeholder for Google's G logo for a clean modern look */}
@@ -154,7 +192,7 @@ export default function LoginScreen() {
               <PocketText variant="title" weight="bold" color="#4285F4">G</PocketText>
             </View>
             <PocketText variant="title" weight="semiBold" color={c.textPrimary}>
-              Google
+              {isGoogleLoading ? 'Signing in...' : 'Google'}
             </PocketText>
           </Pressable>
         </View>

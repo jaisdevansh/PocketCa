@@ -72,4 +72,10 @@ export class AuthController {
     const user = request.user;
     return sendSuccess(request, reply, user, 'Current user profile', {}, 200);
   };
+
+  updateProfile = async (request: FastifyRequest, reply: FastifyReply) => {
+    const data = request.body as any;
+    const result = await this.authService.updateProfile(data, request);
+    return sendSuccess(request, reply, result, 'Profile updated successfully', {}, 200);
+  };
 }

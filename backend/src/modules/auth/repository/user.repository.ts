@@ -47,6 +47,16 @@ export class UserRepository extends BaseRepository<typeof users> {
     return result[0];
   }
 
+  async updateUser(id: string, data: Partial<typeof users.$inferInsert>, tx?: TransactionClient) {
+    const client = this.getClient(tx);
+    const result = await client
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  }
+
   async updateLastLogin(id: string, tx?: TransactionClient) {
     const client = this.getClient(tx);
     await client
